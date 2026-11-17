@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Thí nghiệm ảo Vật Lý: Moment Lực</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            overscroll-behavior-y: none;
+            user-select: none;
+        }
+
+        /* -------------------------- 
+           GLOBAL TAB STYLES 
+        -------------------------- */
+        .tab-content {
+            display: none;
+            flex: 1;
+            width: 100%;
+            overflow: hidden;
+        }
+        .tab-content.active-tab {
+            display: flex;
+        }
+        
+        .tab-btn {
+            position: relative;
+            transition: all 0.2s;
+        }
+        .tab-btn::after {
+            content: ''; position: absolute; bottom: -2px; left: 0; width: 100%; height: 3px;
+            background-color: transparent; transition: background-color 0.2s;
+        }
+        .tab-btn.active {
+            color: #3b82f6;
+        }
+        .tab-btn.active::after {
+            background-color: #3b82f6;
+        }
+
+        /* -------------------------- 
+           STYLES CHO TAB 1 (THANH NGANG) 
+        -------------------------- */
+        .tab1-theme {
+            background-color: #f8fafc;
+        }
+        .canvas-container {
+            background-image: 
+                linear-gradient(#cbd5e1 1px, transparent 1px),
+                linear-gradient(90deg, #cbd5e1 1px, transparent 1px);
+            background-size: 30px 30px;
+            background-color: #f8fafc;
+            opacity: 0.8;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+        }
+
+        .hud-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tool-btn {
+            background: linear-gradient(to bottom, #ffffff, #f8fafc);
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .tool-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+        }
+        .tool-btn.active {
+            background: linear-gradient(to bottom, #eff6ff, #dbeafe);
+            border-color: #3b82f6;
+            color: #1d4ed8;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3), inset 0 2px 4px rgba(255,255,255,0.5);
+            transform: scale(1.02);
+        }
+
+        /* Toggle Button CSS */
+        .toggle-checkbox:checked ~ .block { background-color: #3b82f6; }
+        .toggle-checkbox:checked ~ .dot { transform: translateX(100%); }
+        
+
+        /* -------------------------- 
+           STYLES CHO TAB 2 (MỞ CỬA) 
+        -------------------------- */
+        .tab2-theme {
+            background-color: #0f172a;
+        }
+        .sim-grid-door {
+            background-image: linear-gradient(rgba(148, 163, 184, 0.2) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(148, 163, 184, 0.2) 1px, transparent 1px);
+            background-size: 30px 30px;
+            background-color: #f8fafc;
+        }
+        
+        .hinge {
+            position: absolute; left: 40px; top: 50%; transform: translateY(-50%);
+            width: 28px; height: 28px; background: radial-gradient(circle, #ef4444 30%, #991b1b 100%);
+            border: 3px solid #7f1d1d; border-radius: 50%; z-index: 30; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        }
+        .door-wrapper {
+            position: absolute; left: 54px; top: 50%; transform: translateY(-50%);
+            perspective: 1000px; z-index: 20;
+        }
+        .door {
+            width: 400px; height: 18px;
+            background: linear-gradient(90deg, #b45309 0%, #d97706 50%, #b45309 100%);
+            border-radius: 4px; transform-origin: left center;
+            transition: transform 1s linear; box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.3);
+            position: relative; border: 1px solid #78350f;
+        }
+        
+        .wall {
+            position: absolute; left: 0; top: 0; bottom: 0; width: 40px;
+            background: url('https://www.transparenttextures.com/patterns/cubes.png'), #475569;
+            border-right: 6px solid #334155; z-index: 10;
+        }
+        .force-point {
+            position: absolute; top: -11px; width: 40px; height: 40px;
+            background-color: #e2e8f0; border: 3px solid #94a3b8; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; color: #334155;
+            font-weight: bold; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); z-index: 25;
+        }
+        .force-point:hover { transform: scale(1.1); background-color: #cbd5e1; }
+        .force-point.active-door {
+            background-color: #3b82f6; border-color: #1d4ed8; color: white;
+            box-shadow: 0 0 15px 4px rgba(59, 130, 246, 0.5); transform: scale(1.15);
+        }
+        
+        .force-vector {
+            position: absolute; bottom: -80px; transform-origin: top center; width: 24px;
+            display: flex; flex-direction: column; align-items: center; transition: all 0.3s ease;
+            pointer-events: none; z-index: 15;
+        }
+        .arrow-head { border-left: 12px solid transparent; border-right: 12px solid transparent; border-bottom: 20px solid #ef4444; }
+        .arrow-body { width: 8px; height: 60px; background-color: #ef4444; transition: height 0.3s ease; }
+        
+        .ruler {
+            position: absolute; left: 54px; top: calc(50% + 40px); height: 12px;
+            border-left: 2px solid #1e293b; border-right: 2px solid #1e293b; border-bottom: 2px dashed #1e293b;
+            transition: width 0.3s ease; z-index: 5;
+        }
+        .ruler-text {
+            position: absolute; bottom: -24px; left: 50%; transform: translateX(-50%);
+            background: #1e293b; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;
+        }
+        
+        .digital-font { font-family: 'Courier New', Courier, monospace; }
+
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%;
+            background: #ef4444; cursor: pointer; margin-top: -6px; box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 8px; cursor: pointer; background: #cbd5e1; border-radius: 4px;
+        }
+        .tab2-theme input[type=range]::-webkit-slider-runnable-track {
+            background: #334155;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="absolute inset-0 flex flex-col overflow-hidden" id="mainBody">
+
+    <!-- Header / Tab Navigation -->
+    <nav class="bg-white border-b border-slate-200 flex items-center justify-between px-6 py-0 shadow-sm z-50 shrink-0 h-14" id="mainNav">
+        <div class="font-black text-lg flex items-center gap-2 text-slate-800" id="navTitle">
+            <i class="fas fa-balance-scale text-blue-500"></i> Bài Học: Moment Lực
+        </div>
+        
+        <div class="flex h-full">
+            <button class="tab-btn active px-6 h-full font-bold text-slate-500 hover:text-slate-800 flex items-center gap-2" onclick="switchTab('tab1', this)">
+                <i class="fas fa-ruler-horizontal"></i> 1. Thanh Ngang
+            </button>
+            <button class="tab-btn px-6 h-full font-bold text-slate-500 hover:text-slate-800 flex items-center gap-2 border-l border-slate-100" onclick="switchTab('tab2', this)">
+                <i class="fas fa-door-open"></i> 2. Mở Cửa Thông Minh
+            </button>
+        </div>
+    </nav>
+
+    <!--
+    ============================================== 
+          TAB 1: THÍ NGHIỆM THANH NGANG 
+    ============================================== -->
+    <div id="tab1" class="tab-content active-tab flex-col lg:flex-row tab1-theme relative">
+        
+        <!-- BẢNG SỐ LIỆU (BÊN TRÁI) -->
+        <div class="w-full lg:w-[220px] bg-white border-r border-slate-200 shadow-[4px_0_15px_rgba(0,0,0,0.03)] flex flex-col h-[35%] lg:h-full shrink-0 z-30 relative order-2 lg:order-1">
+            <div class="bg-slate-800 text-white px-3 py-3 flex justify-between items-center shadow-md z-10">
+                <span class="text-[11px] font-bold uppercase tracking-widest flex items-center gap-1.5">
+                    <i class="fas fa-table text-blue-400"></i> Số Liệu
+                </span>
+                <div id="rodStatus" class="font-bold text-[9px] bg-slate-700 text-blue-100 px-1.5 py-1 rounded border border-slate-600 flex items-center gap-1 shadow-sm">
+                    <i class="fas fa-check-circle text-blue-400"></i> Cân bằng
+                </div>
+            </div>
+            <div class="overflow-y-auto flex-1 scrollbar-hide">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-[10px] text-slate-500 bg-slate-100/90 uppercase border-b border-slate-200/50 font-bold sticky top-0 backdrop-blur-sm z-10">
+                        <tr>
+                            <th class="px-2 py-2">Vị trí</th>
+                            <th class="px-1 py-2 text-center">F(N)</th>
+                            <th class="px-1 py-2 text-center">d(m)</th>
+                            <th class="px-1 py-2 text-center text-blue-600">M</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-100/60 bg-white">
+                        <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400 font-medium italic text-xs">Chưa treo quả nặng nào</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- KHU VỰC CANVAS (CHÍNH GIỮA) -->
+        <div class="flex-1 flex flex-col relative bg-[#f8fafc] overflow-hidden shadow-inner order-1 lg:order-2 h-[45%] lg:h-full z-10">
+            <!-- Bảng HUD Moment nổi bật ở giữa -->
+            <div class="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none z-10 flex gap-3 items-center scale-90 md:scale-100 origin-top">
+                <div class="glass-panel hud-card rounded-2xl px-5 py-2.5 text-center min-w-[130px] border-b-4 border-b-emerald-400">
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5 flex items-center justify-center gap-1">
+                        <i class="fas fa-undo text-emerald-500"></i> Moment Trái
+                    </div>
+                    <div class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-br from-emerald-500 to-emerald-700 drop-shadow-sm" id="topHudMLeft">0.00</div>
+                </div>
+                
+                <div class="glass-panel hud-card rounded-2xl px-5 py-2.5 text-center min-w-[130px] border-b-4 border-b-orange-400">
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5 flex items-center justify-center gap-1">
+                        Moment Phải <i class="fas fa-redo text-orange-500"></i>
+                    </div>
+                    <div class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-red-500 drop-shadow-sm" id="topHudMRight">0.00</div>
+                </div>
+            </div>
+
+            <!-- Nút Reset nổi -->
+            <div class="absolute top-4 right-4 z-10 scale-90 md:scale-100 origin-top-right">
+                <button id="btnResetRod" class="glass-panel hover:bg-red-50 text-red-600 px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-2 group hover:scale-105 active:scale-95 shadow-sm text-sm">
+                    <i class="fas fa-power-off group-hover:rotate-180 transition-transform duration-500"></i> Đặt lại
+                </button>
+            </div>
+
+            <!-- Notification Toast -->
+            <div id="toast1" class="absolute top-24 left-1/2 -translate-x-1/2 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 px-4 py-2 rounded shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none z-20 flex items-center gap-2 mt-2 font-medium text-sm">
+                <div class="bg-yellow-200 text-yellow-700 rounded-full w-5 h-5 flex items-center justify-center"><i class="fas fa-exclamation text-xs"></i></div>
+                <span id="toastMsg1">Lực đặt tại O không tạo moment!</span>
+            </div>
+
+            <!-- CANVAS CHO TAB 1 -->
+            <canvas id="simCanvas" class="w-full h-full canvas-container touch-none cursor-crosshair relative z-0"></canvas>
+        </div>
+
+        <!-- BẢNG ĐIỀU KHIỂN (BÊN PHẢI) -->
+        <div class="w-full lg:w-[290px] bg-white border-l border-slate-200 flex flex-col h-[40%] lg:h-full overflow-y-auto shadow-[-4px_0_15px_rgba(0,0,0,0.03)] z-30 relative shrink-0 order-3">
+            
+            <!-- BỔ SUNG: ĐIỀU KHIỂN XOAY VÀ TỐC ĐỘ XOAY -->
+            <div class="p-4 border-b border-slate-100 bg-amber-50/40">
+                <h2 class="text-[12px] font-black text-slate-800 mb-2 uppercase tracking-wider flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span> Điều khiển xoay & Tốc độ
+                </h2>
+                
+                <div class="space-y-3">
+                    <!-- Nút Kích Xoay Nhanh -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="btnSpinLeft" class="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-2 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all">
+                            <i class="fas fa-undo"></i> Xoay Trái
+                        </button>
+                        <button id="btnSpinRight" class="bg-orange-600 hover:bg-orange-700 active:scale-95 text-white font-bold py-2 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all">
+                            Xoay Phải <i class="fas fa-redo"></i>
+                        </button>
+                    </div>
+
+                    <!-- Slider Tốc độ quay -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[11px] font-bold text-slate-700">Tốc độ phản ứng:</span>
+                            <span id="speedVal" class="text-xs font-black text-blue-600 digital-font">1.0x</span>
+                        </div>
+                        <input type="range" id="speedSlider" min="0.2" max="3.0" step="0.2" value="1.0" class="w-full">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls Section -->
+            <div class="p-4 border-b border-slate-100 bg-slate-50/50">
+                <h2 class="text-[12px] font-black text-slate-800 mb-2 uppercase tracking-wider flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-blue-500"></span> Công cụ quả nặng
+                </h2>
+                
+                <div class="grid grid-cols-4 gap-2 mb-3" id="toolBox">
+                    <button class="tool-btn active border-2 border-slate-200 rounded-xl p-2 text-xs font-bold text-slate-600 flex flex-col items-center gap-1.5" data-mode="1">
+                        <div class="w-4 h-6 bg-gradient-to-br from-amber-600 to-amber-400 rounded-sm shadow-sm relative"><div class="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1.5 border-2 border-slate-400 rounded-t-full"></div></div>
+                        1 quả
+                    </button>
+                    <button class="tool-btn border-2 border-slate-200 rounded-xl p-2 text-xs font-bold text-slate-600 flex flex-col items-center gap-1.5" data-mode="2">
+                        <div class="flex gap-0.5">
+                            <div class="w-2.5 h-6 bg-gradient-to-br from-amber-600 to-amber-400 rounded-sm shadow-sm relative"><div class="absolute -top-1 left-1/2 -translate-x-1/2 w-0.5 h-1 border border-slate-400 rounded-t-full"></div></div>
+                            <div class="w-2.5 h-6 bg-gradient-to-br from-amber-600 to-amber-400 rounded-sm shadow-sm relative"><div class="absolute -top-1 left-1/2 -translate-x-1/2 w-0.5 h-1 border border-slate-400 rounded-t-full"></div></div>
+                        </div>
+                        2 quả
+                    </button>
+                    <button class="tool-btn border-2 border-slate-200 rounded-xl p-2 text-xs font-bold text-slate-600 flex flex-col items-center gap-1.5" data-mode="3">
+                        <div class="text-xl font-black text-slate-400 leading-none mt-1">3</div>
+                        3 quả
+                    </button>
+                    <button class="tool-btn border-2 border-slate-200 rounded-xl p-2 text-xs font-bold text-slate-600 flex flex-col items-center gap-1.5" data-mode="4">
+                        <div class="text-xl font-black text-slate-400 leading-none mt-1">4</div>
+                        4 quả
+                    </button>
+                    <button class="col-span-4 tool-btn border-2 border-rose-200 bg-rose-50 rounded-xl p-2.5 text-xs font-bold text-rose-600 hover:bg-rose-100 flex justify-center items-center gap-2" data-mode="remove">
+                        <i class="fas fa-eraser"></i> Tháo quả nặng
+                    </button>
+                </div>
+
+                <p class="text-[11px] text-slate-500 bg-blue-50/50 p-2 rounded-lg border border-blue-100 flex items-start gap-1.5 leading-relaxed">
+                    <i class="fas fa-mouse-pointer text-blue-400 mt-0.5"></i>
+                    <span>Chọn quả nặng, sau đó <strong>bấm vào các vị trí (A, B, O...)</strong>.</span>
+                </p>
+            </div>
+
+            <!-- View Toggles -->
+            <div class="px-4 py-3 border-b border-slate-100">
+                <h2 class="text-[12px] font-black text-slate-800 mb-2 uppercase tracking-wider flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-purple-500"></span> Hiển thị thông số
+                </h2>
+                <div class="space-y-2">
+                    <label class="flex items-center justify-between cursor-pointer group">
+                        <span class="text-[12px] font-bold text-slate-700 group-hover:text-emerald-600 transition-colors">Cánh tay đòn (d)</span>
+                        <div class="relative">
+                            <input type="checkbox" id="toggleDistance" class="sr-only toggle-checkbox" checked>
+                            <div class="block bg-slate-200 w-10 h-6 rounded-full transition-colors shadow-inner"></div>
+                            <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform shadow-md"></div>
+                        </div>
+                    </label>
+                    <label class="flex items-center justify-between cursor-pointer group">
+                        <span class="text-[12px] font-bold text-slate-700 group-hover:text-red-600 transition-colors">Lực & Moment (M)</span>
+                        <div class="relative">
+                            <input type="checkbox" id="toggleForce" class="sr-only toggle-checkbox" checked>
+                            <div class="block bg-slate-200 w-10 h-6 rounded-full transition-colors shadow-inner"></div>
+                            <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform shadow-md"></div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Cài đặt thanh -->
+            <div class="px-4 py-3 border-b border-slate-100">
+                <h2 class="text-[12px] font-black text-slate-800 mb-2 uppercase tracking-wider flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span> Kích thước thanh
+                </h2>
+                <select id="rodSizeSelect" class="w-full p-2 border-2 border-slate-200 rounded-xl font-bold text-slate-700 text-sm focus:border-blue-500 outline-none transition-colors cursor-pointer bg-slate-50 hover:bg-slate-100 shadow-sm">
+                    <option value="0.5">0.5 m</option>
+                    <option value="1.0" selected>1.0 m</option>
+                    <option value="1.5">1.5 m</option>
+                    <option value="2.0">2.0 m</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!--
+    ============================================== 
+          TAB 2: THÍ NGHIỆM MỞ CỬA THÔNG MINH 
+    ============================================== -->
+    <div id="tab2" class="tab-content flex-col lg:flex-row tab2-theme relative text-slate-200">
+        
+        <!-- BẢNG KẾT QUẢ (BÊN TRÁI) -->
+        <div class="w-full lg:w-[320px] bg-slate-900 border-r border-slate-700 shadow-[4px_0_15px_rgba(0,0,0,0.3)] flex flex-col h-[30%] lg:h-full shrink-0 z-30 relative order-2 lg:order-1">
+            <div class="bg-slate-800 text-white px-4 py-3 flex justify-between items-center shadow-md z-10 border-b border-slate-700">
+                <span class="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                    <i class="fas fa-calculator text-amber-500"></i> Bảng Tính Toán
+                </span>
+            </div>
+            
+            <div class="p-5 flex-1 flex flex-col gap-4 overflow-y-auto">
+                <div class="bg-black p-4 rounded-xl border border-slate-700 shadow-inner relative overflow-hidden">
+                    <div class="text-slate-400 text-xs uppercase tracking-widest mb-3 font-semibold">Đại lượng vật lý</div>
+                    <div class="flex justify-between items-center text-slate-300 mb-2 text-sm">
+                        <span>Lực F:</span><span class="digital-font text-base text-red-400" id="calc-f">10 N</span>
+                    </div>
+                    <div class="flex justify-between items-center text-slate-300 mb-3 pb-3 border-b border-slate-800 text-sm">
+                        <span>Cánh tay đòn d:</span><span class="digital-font text-base text-blue-400" id="calc-d">0.2 m</span>
+                    </div>
+                    <div class="flex justify-between items-end">
+                        <span class="text-amber-500 font-semibold text-xs">Moment (M = F×d):</span>
+                        <span class="text-amber-400 font-bold digital-font text-3xl drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]" id="calc-m">2.0</span>
+                    </div>
+                </div>
+
+                <div id="status-box" class="p-4 rounded-xl border border-blue-900 bg-blue-900/20 text-blue-300 text-xs text-center leading-relaxed mt-2">
+                    Cánh cửa đang đóng. Hãy thiết lập các thông số và nhấn "Tác Dụng Lực".
+                </div>
+            </div>
+        </div>
+
+        <!-- KHU VỰC MÔ PHỎNG (CHÍNH GIỮA) -->
+        <div class="flex-1 relative sim-grid-door flex flex-col shadow-[inset_-10px_0_20px_rgba(0,0,0,0.1)] h-[40%] lg:h-full overflow-hidden order-1 lg:order-2 z-10 flex items-center justify-center">
+            
+            <div class="absolute top-4 right-4 z-40 pointer-events-none">
+                <div class="bg-white/90 backdrop-blur px-4 py-2 rounded-lg border border-slate-200 shadow-sm text-sm font-semibold text-slate-600 flex items-center gap-2">
+                    <i class="fas fa-camera text-blue-500"></i> Góc nhìn từ trên xuống
+                </div>
+            </div>
+
+            <div class="relative w-full max-w-[500px] h-full flex items-center justify-start ml-4 md:ml-10">
+                <div class="wall"></div>
+                <div class="hinge"></div>
+                
+                <div class="door-wrapper">
+                    <div class="door" id="door-element">
+                        <div class="force-point active-door" id="pointA" style="left: 60px;" onclick="doorSim.selectPoint('A', 0.2, 60)">A</div>
+                        <div class="force-point" id="pointB" style="left: 200px;" onclick="doorSim.selectPoint('B', 0.5, 200)">B</div>
+                        <div class="force-point" id="pointC" style="left: 360px;" onclick="doorSim.selectPoint('C', 0.9, 360)">C</div>
+                        
+                        <div class="force-vector" id="force-arrow" style="left: 68px;">
+                            <div class="arrow-head"></div>
+                            <div class="arrow-body" id="arrow-tail"></div>
+                            <div class="mt-1 font-bold text-red-600 bg-white/90 px-1.5 py-0.5 rounded shadow-sm text-xs border border-red-200" id="arrow-label">10N</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ruler" id="ruler-line" style="width: 60px;">
+                    <div class="ruler-text" id="ruler-label">d = 0.2m</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BẢNG ĐIỀU KHIỂN (BÊN PHẢI) -->
+        <div class="w-full lg:w-[320px] bg-slate-900 text-slate-300 flex flex-col border-l border-slate-700 shadow-2xl relative z-30 h-[30%] lg:h-full shrink-0 order-3 lg:order-3">
+            <div class="p-5 flex-1 flex flex-col gap-5 overflow-y-auto">
+                <h2 class="text-[13px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-2 mb-1">
+                    <i class="fas fa-sliders-h text-blue-500"></i> Công cụ Thí nghiệm
+                </h2>
+
+                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
+                    <label class="block text-sm font-semibold text-slate-200 mb-3">1. Vị trí điểm đặt lực:</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button id="btnA" onclick="doorSim.selectPoint('A', 0.2, 60)" class="panel-point-btn bg-blue-600 text-white text-xs font-bold py-2 rounded-lg border-2 border-blue-400 transition hover:bg-blue-500">A (Gần)</button>
+                        <button id="btnB" onclick="doorSim.selectPoint('B', 0.5, 200)" class="panel-point-btn bg-slate-700 text-slate-300 text-xs font-bold py-2 rounded-lg border-2 border-slate-600 transition hover:bg-slate-600">B (Giữa)</button>
+                        <button id="btnC" onclick="doorSim.selectPoint('C', 0.9, 360)" class="panel-point-btn bg-slate-700 text-slate-300 text-xs font-bold py-2 rounded-lg border-2 border-slate-600 transition hover:bg-slate-600">C (Xa)</button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
+                    <div class="flex justify-between items-end mb-4">
+                        <label class="block text-sm font-semibold text-slate-200">2. Độ lớn Lực (F):</label>
+                        <div class="bg-red-500/20 text-red-400 px-3 py-1 rounded-md font-bold digital-font text-lg border border-red-500/30 shadow-inner" id="force-display">10 N</div>
+                    </div>
+                    <input type="range" id="force-slider" min="1" max="20" step="1" value="10" oninput="doorSim.updateForce(this.value)">
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-800 border-t border-slate-700 space-y-2 mt-auto">
+                <button onclick="doorSim.pushDoor()" id="btn-push" class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition-all hover:scale-[1.02] active:scale-95 flex justify-center items-center gap-2 text-base">
+                    <i class="fas fa-hand-paper"></i> TÁC DỤNG LỰC
+                </button>
+                <button onclick="doorSim.resetDoor()" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold py-3 px-4 rounded-xl transition-colors flex justify-center items-center gap-2 text-sm">
+                    <i class="fas fa-undo"></i> Đóng cửa / Đặt lại
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabId, btnElement) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
+
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active-tab'));
+            document.getElementById(tabId).classList.add('active-tab');
+
+            const nav = document.getElementById('mainNav');
+            if(tabId === 'tab1') {
+                nav.className = "bg-white border-b border-slate-200 flex items-center justify-between px-6 py-0 shadow-sm z-50 shrink-0 h-14 transition-colors duration-300";
+                document.getElementById('navTitle').className = "font-black text-lg flex items-center gap-2 text-slate-800";
+            } else {
+                nav.className = "bg-slate-900 border-b border-slate-700 flex items-center justify-between px-6 py-0 shadow-md z-50 shrink-0 h-14 transition-colors duration-300";
+                document.getElementById('navTitle').className = "font-black text-lg flex items-center gap-2 text-white";
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                   if(!btn.classList.contains('active')) btn.style.color = '#94a3b8';
+                });
+            }
+
+            if(tabId === 'tab1') {
+                setTimeout(resizeCanvas, 50);
+            }
+        }
+
+        // ==========================================
+        // LOGIC TAB 1: THANH NGANG
+        // ==========================================
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const HOLES = [
+            { id: -5, label: '' }, { id: -4, label: 'A' }, { id: -3, label: '' },
+            { id: -2, label: 'B' }, { id: -1, label: '' }, { id: 0, label: 'O' },
+            { id: 1, label: '' }, { id: 2, label: 'C' }, { id: 3, label: '' },
+            { id: 4, label: 'D' }, { id: 5, label: '' }
+        ];
+
+        const UNIT_PIXELS = 28; 
+        const FORCE_PIXELS = 13; 
+        const GRAVITY = 10;
+        const MASS_PER_WEIGHT = 1; 
+        const MAX_ANGLE = Math.PI / 2.8;
+
+        let state1 = {
+            weights: {}, 
+            angle: 0, 
+            angularVelocity: 0,
+            speedMultiplier: 1.0, // Hệ số tốc độ xoay
+            mode: '1', 
+            showForce: true,
+            showDistance: true,
+            hoveredHole: null,
+            rodLength: 1.0
+        };
+
+        const tableBody = document.getElementById('tableBody');
+        const rodStatusEl = document.getElementById('rodStatus');
+        const toast1 = document.getElementById('toast1');
+        const toastMsg1 = document.getElementById('toastMsg1');
+        const topHudMLeft = document.getElementById('topHudMLeft');
+        const topHudMRight = document.getElementById('topHudMRight');
+
+        let centerX = 0, centerY = 0;
+
+        function resizeCanvas() {
+            if(document.getElementById('tab1').classList.contains('active-tab')) {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+                centerX = canvas.width / 2;
+                centerY = Math.max(canvas.height / 2 - 40, 100); 
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // UI Listeners cho Tab 1
+        document.querySelectorAll('#tab1 .tool-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('#tab1 .tool-btn').forEach(b => b.classList.remove('active', 'border-blue-400', 'bg-blue-50'));
+                btn.classList.add('active');
+                if(btn.dataset.mode === 'remove') {
+                    btn.classList.add('border-rose-400', 'bg-rose-50');
+                }
+                state1.mode = btn.dataset.mode;
+            });
+        });
+
+        // Event listener cho Nút Xoay và Tốc độ xoay
+        document.getElementById('btnSpinLeft').addEventListener('click', () => {
+            state1.angularVelocity -= 0.2 * state1.speedMultiplier;
+        });
+
+        document.getElementById('btnSpinRight').addEventListener('click', () => {
+            state1.angularVelocity += 0.2 * state1.speedMultiplier;
+        });
+
+        document.getElementById('speedSlider').addEventListener('input', (e) => {
+            state1.speedMultiplier = parseFloat(e.target.value);
+            document.getElementById('speedVal').textContent = `${state1.speedMultiplier.toFixed(1)}x`;
+        });
+
+        const setupToggle = (id, stateKey) => {
+            const el = document.getElementById(id);
+            el.addEventListener('change', (e) => { state1[stateKey] = e.target.checked; });
+            if(state1[stateKey]) el.checked = true;
+        };
+        setupToggle('toggleDistance', 'showDistance');
+        setupToggle('toggleForce', 'showForce');
+
+        document.getElementById('rodSizeSelect').addEventListener('change', (e) => {
+            state1.rodLength = parseFloat(e.target.value);
+            updateDataTable1();
+        });
+
+        document.getElementById('btnResetRod').addEventListener('click', () => {
+            state1.weights = {};
+            state1.angle = 0;
+            state1.angularVelocity = 0;
+            updateDataTable1();
+        });
+
+        function getMousePos1(evt) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+            const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        function checkHover1(evt) {
+            if(!document.getElementById('tab1').classList.contains('active-tab')) return;
+            const pos = getMousePos1(evt);
+            state1.hoveredHole = null;
+            
+            for (let hole of HOLES) {
+                const hx = centerX + hole.id * UNIT_PIXELS * Math.cos(state1.angle);
+                const hy = centerY + hole.id * UNIT_PIXELS * Math.sin(state1.angle);
+                
+                if (Math.hypot(pos.x - hx, pos.y - hy) < 20) { 
+                    state1.hoveredHole = hole.id;
+                    canvas.style.cursor = 'pointer';
+                    return;
+                }
+            }
+            canvas.style.cursor = 'crosshair';
+        }
+
+        canvas.addEventListener('mousemove', checkHover1);
+        canvas.addEventListener('touchmove', (e) => { 
+            if(document.getElementById('tab1').classList.contains('active-tab')) {
+                e.preventDefault(); checkHover1(e); 
+            }
+        }, {passive: false});
+
+        function handleInteract1(evt) {
+            if(!document.getElementById('tab1').classList.contains('active-tab')) return;
+            checkHover1(evt);
+            if (state1.hoveredHole !== null) {
+                if (state1.mode === 'remove') {
+                    delete state1.weights[state1.hoveredHole];
+                } else {
+                    state1.weights[state1.hoveredHole] = parseInt(state1.mode);
+                    if (state1.hoveredHole === 0) {
+                        toastMsg1.textContent = "Lực đặt tại trục quay O có cánh tay đòn d=0 nên không sinh ra moment làm quay!";
+                        toast1.style.opacity = '1';
+                        toast1.style.transform = 'translate(-50%, 0)';
+                        setTimeout(() => { toast1.style.opacity = '0'; toast1.style.transform = 'translate(-50%, -10px)'; }, 3500);
+                    }
+                }
+                state1.angularVelocity += (Math.random() - 0.5) * 0.015 * state1.speedMultiplier;
+                updateDataTable1();
+            }
+        }
+
+        canvas.addEventListener('mousedown', handleInteract1);
+        canvas.addEventListener('touchstart', (e) => { 
+            if(document.getElementById('tab1').classList.contains('active-tab')) {
+                e.preventDefault(); handleInteract1(e); 
+            }
+        }, {passive: false});
+
+        function updatePhysics1() {
+            const dt = (1 / 60) * state1.speedMultiplier;
+            let netTorque = 0;
+            
+            const I_rod = 15, m_rod = 5, cmOffset = 0.1; 
+            netTorque -= m_rod * GRAVITY * cmOffset * Math.sin(state1.angle);
+            let totalI = I_rod;
+
+            for (const [idStr, count] of Object.entries(state1.weights)) {
+                const r = parseInt(idStr); 
+                const force = count * GRAVITY * MASS_PER_WEIGHT; 
+                const scale = state1.rodLength / 10;
+                const real_r = r * scale;
+                
+                netTorque += real_r * Math.cos(state1.angle) * force;
+                totalI += (count * MASS_PER_WEIGHT) * Math.pow(Math.abs(real_r), 2); 
+            }
+
+            state1.angularVelocity += (netTorque / totalI) * dt;
+            state1.angularVelocity *= 0.98; 
+            state1.angle += state1.angularVelocity * dt;
+
+            if (state1.angle > MAX_ANGLE) { state1.angle = MAX_ANGLE; state1.angularVelocity *= -0.3; } 
+            else if (state1.angle < -MAX_ANGLE) { state1.angle = -MAX_ANGLE; state1.angularVelocity *= -0.3; }
+        }
+
+        function updateDataTable1() {
+            let html = '', sumL = 0, sumR = 0, hasWeights = false;
+            const keys = Object.keys(state1.weights).map(Number).sort((a,b) => a-b);
+            
+            for (let id of keys) {
+                const count = state1.weights[id];
+                if (count > 0) {
+                    hasWeights = true;
+                    const scale = state1.rodLength / 10;
+                    const d_exact = Math.abs(id * scale * Math.cos(state1.angle));
+                    const moment = count * d_exact;
+                    
+                    const label = HOLES.find(h => h.id === id).label || Math.abs(id);
+                    const posName = id === 0 ? `Tâm O` : (id < 0 ? `Trái (${label})` : `Phải (${label})`);
+                    
+                    if (id < 0) sumL += moment;
+                    if (id > 0) sumR += moment;
+
+                    html += `
+                        <tr class="hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0 text-[11px]">
+                            <td class="px-2 py-2 font-bold text-slate-700">${posName}</td>
+                            <td class="px-1 py-2 text-center text-rose-500 font-bold">${count}</td>
+                            <td class="px-1 py-2 text-center text-emerald-600 font-medium">${d_exact.toFixed(2)}</td>
+                            <td class="px-1 py-2 text-center text-blue-600 font-black">${moment.toFixed(2)}</td>
+                        </tr>
+                    `;
+                }
+            }
+
+            tableBody.innerHTML = hasWeights ? html : '<tr><td colspan="4" class="px-2 py-6 text-center text-slate-400 font-medium italic text-[11px]">Chưa treo quả nặng</td></tr>';
+
+            topHudMLeft.textContent = sumL.toFixed(2);
+            topHudMRight.textContent = sumR.toFixed(2);
+            
+            if(sumL > sumR + 0.05) {
+                topHudMLeft.parentElement.classList.add('scale-105', 'shadow-[0_0_20px_rgba(52,211,153,0.4)]');
+                topHudMRight.parentElement.classList.remove('scale-105', 'shadow-[0_0_20px_rgba(251,146,60,0.4)]');
+            } else if (sumR > sumL + 0.05) {
+                topHudMRight.parentElement.classList.add('scale-105', 'shadow-[0_0_20px_rgba(251,146,60,0.4)]');
+                topHudMLeft.parentElement.classList.remove('scale-105', 'shadow-[0_0_20px_rgba(52,211,153,0.4)]');
+            } else {
+                topHudMLeft.parentElement.classList.remove('scale-105', 'shadow-[0_0_20px_rgba(52,211,153,0.4)]');
+                topHudMRight.parentElement.classList.remove('scale-105', 'shadow-[0_0_20px_rgba(251,146,60,0.4)]');
+            }
+
+            if (Math.abs(state1.angle) < 0.02 && Math.abs(state1.angularVelocity) < 0.01) {
+                rodStatusEl.innerHTML = `<i class="fas fa-balance-scale text-blue-400"></i> Cân bằng`;
+                rodStatusEl.className = "font-bold text-sm bg-slate-700 text-blue-100 px-3 py-1.5 rounded-lg border border-slate-600 flex items-center gap-2";
+            } else if (state1.angularVelocity < -0.01 || (state1.angularVelocity === 0 && state1.angle < 0)) {
+                rodStatusEl.innerHTML = `<i class="fas fa-undo text-emerald-400"></i> Quay trái`;
+                rodStatusEl.className = "font-bold text-sm bg-emerald-900/50 text-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-700 flex items-center gap-2";
+            } else {
+                rodStatusEl.innerHTML = `Quay phải <i class="fas fa-redo text-orange-400"></i>`;
+                rodStatusEl.className = "font-bold text-sm bg-orange-900/50 text-orange-100 px-3 py-1.5 rounded-lg border border-orange-700 flex items-center gap-2";
+            }
+        }
+
+        function drawPillText(text, x, y, bgColor, textColor, fontSize=12, shadow=true) {
+            ctx.font = `bold ${fontSize}px Inter`;
+            const metrics = ctx.measureText(text);
+            const w = metrics.width + 16;
+            const h = fontSize + 10;
+            
+            ctx.save();
+            if(shadow) {
+                ctx.shadowColor = 'rgba(0,0,0,0.15)';
+                ctx.shadowBlur = 6;
+                ctx.shadowOffsetY = 3;
+            }
+            
+            ctx.fillStyle = bgColor;
+            ctx.beginPath();
+            ctx.roundRect(x - w/2, y - h/2, w, h, h/2);
+            ctx.fill();
+            
+            ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.restore();
+
+            ctx.fillStyle = textColor;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, x, y);
+        }
+
+        function drawStand1() {
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            
+            let poleGrad = ctx.createLinearGradient(-10, 0, 10, 0);
+            poleGrad.addColorStop(0, '#64748b'); 
+            poleGrad.addColorStop(0.3, '#f8fafc'); 
+            poleGrad.addColorStop(1, '#475569');
+            
+            ctx.fillStyle = poleGrad;
+            ctx.beginPath();
+            ctx.roundRect(-8, 0, 16, canvas.height - centerY, 4);
+            ctx.fill();
+            
+            let baseGrad = ctx.createLinearGradient(0, canvas.height - centerY - 40, 0, canvas.height - centerY);
+            baseGrad.addColorStop(0, '#475569');
+            baseGrad.addColorStop(1, '#0f172a');
+            
+            ctx.fillStyle = baseGrad;
+            ctx.beginPath();
+            ctx.moveTo(-60, canvas.height - centerY);
+            ctx.lineTo(60, canvas.height - centerY);
+            ctx.quadraticCurveTo(60, canvas.height - centerY - 5, 20, canvas.height - centerY - 40);
+            ctx.lineTo(-20, canvas.height - centerY - 40);
+            ctx.quadraticCurveTo(-60, canvas.height - centerY - 5, -60, canvas.height - centerY);
+            ctx.fill();
+            
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.fillStyle = '#cbd5e1';
+            ctx.shadowColor = 'rgba(0,0,0,0.3)';
+            ctx.shadowBlur = 5;
+            ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
+            
+            ctx.fillStyle = '#1e293b';
+            ctx.shadowColor = 'transparent';
+            ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill();
+            
+            ctx.restore();
+        }
+
+        function drawRod1() {
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(state1.angle);
+
+            const rodLength = 12 * UNIT_PIXELS; 
+            const rodHeight = 22;
+            
+            let rodGrad = ctx.createLinearGradient(0, -rodHeight/2, 0, rodHeight/2);
+            rodGrad.addColorStop(0, '#bae6fd'); 
+            rodGrad.addColorStop(0.3, '#38bdf8'); 
+            rodGrad.addColorStop(1, '#0284c7'); 
+
+            ctx.shadowColor = 'rgba(0,0,0,0.2)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 6;
+
+            ctx.fillStyle = rodGrad; 
+            ctx.beginPath();
+            ctx.roundRect(-rodLength/2, -rodHeight/2, rodLength, rodHeight, 14);
+            ctx.fill();
+            
+            ctx.shadowColor = 'transparent'; 
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(-rodLength/2 + 2, -rodHeight/2 + 2, rodLength - 4, rodHeight - 4, 12);
+            ctx.stroke();
+
+            ctx.font = 'bold 13px Inter';
+            for (let hole of HOLES) {
+                const rx = hole.id * UNIT_PIXELS;
+                
+                ctx.fillStyle = (state1.hoveredHole === hole.id) ? '#fef08a' : '#0f172a';
+                ctx.beginPath();
+                ctx.arc(rx, 0, 6, 0, Math.PI*2);
+                ctx.fill();
+                
+                if (state1.hoveredHole === hole.id) {
+                    ctx.strokeStyle = 'rgba(250, 204, 21, 0.6)';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath(); ctx.arc(rx, 0, 10, 0, Math.PI*2); ctx.stroke();
+                }
+
+                if (hole.label) {
+                    ctx.save();
+                    ctx.translate(rx, -28);
+                    ctx.rotate(-state1.angle); 
+                    
+                    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+                    ctx.shadowColor = 'rgba(0,0,0,0.1)';
+                    ctx.shadowBlur = 4;
+                    ctx.beginPath();
+                    ctx.roundRect(-12, -12, 24, 24, 6);
+                    ctx.fill();
+                    
+                    ctx.strokeStyle = '#e2e8f0';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    
+                    ctx.shadowColor = 'transparent';
+                    ctx.fillStyle = '#0f172a';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(hole.label, 0, 1);
+                    ctx.restore();
+                }
+            }
+            ctx.restore();
+        }
+
+        function drawHangingWeights1() {
+            for (const [idStr, count] of Object.entries(state1.weights)) {
+                if (count > 0) {
+                    const r = parseInt(idStr);
+                    const hx = centerX + r * UNIT_PIXELS * Math.cos(state1.angle);
+                    const hy = centerY + r * UNIT_PIXELS * Math.sin(state1.angle);
+
+                    ctx.save();
+                    ctx.translate(hx, hy);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(0, 14);
+                    ctx.strokeStyle = '#94a3b8';
+                    ctx.lineWidth = 2.5;
+                    ctx.lineCap = 'round';
+                    ctx.stroke();
+
+                    const wWidth = 24;
+                    const wHeight = 14;
+                    
+                    for (let i = 0; i < count; i++) {
+                        const wy = 14 + i * (wHeight + 1);
+                        
+                        let grad = ctx.createLinearGradient(-wWidth/2, 0, wWidth/2, 0);
+                        grad.addColorStop(0, '#92400e');
+                        grad.addColorStop(0.2, '#d97706'); 
+                        grad.addColorStop(0.5, '#fbbf24'); 
+                        grad.addColorStop(0.8, '#d97706'); 
+                        grad.addColorStop(1, '#92400e'); 
+                        
+                        ctx.shadowColor = 'rgba(0,0,0,0.2)';
+                        ctx.shadowBlur = 4;
+                        ctx.shadowOffsetY = 2;
+
+                        ctx.fillStyle = grad;
+                        ctx.beginPath();
+                        ctx.roundRect(-wWidth/2, wy, wWidth, wHeight, 4);
+                        ctx.fill();
+                        
+                        ctx.shadowColor = 'transparent';
+                        ctx.strokeStyle = '#78350f';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(-wWidth/3, wy + wHeight/2);
+                        ctx.lineTo(wWidth/3, wy + wHeight/2);
+                        ctx.strokeStyle = 'rgba(120, 53, 15, 0.5)';
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+                        
+                        ctx.fillStyle = '#451a03';
+                        ctx.font = 'bold 8px Inter';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('1N', 0, wy + wHeight/2);
+                    }
+                    ctx.restore();
+                }
+            }
+        }
+
+        function drawVectorsAndDistances1() {
+            for (const [idStr, count] of Object.entries(state1.weights)) {
+                if (count > 0) {
+                    const r = parseInt(idStr);
+                    const hx = centerX + r * UNIT_PIXELS * Math.cos(state1.angle);
+                    const hy = centerY + r * UNIT_PIXELS * Math.sin(state1.angle);
+
+                    if (state1.showDistance && r !== 0) {
+                        ctx.save();
+                        const dY = centerY - 45; 
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(centerX, dY); 
+                        ctx.lineTo(hx, dY);
+                        ctx.strokeStyle = '#10b981'; 
+                        ctx.lineWidth = 2.5;
+                        ctx.setLineDash([6, 4]);
+                        ctx.stroke();
+
+                        ctx.setLineDash([3, 4]);
+                        ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
+                        ctx.beginPath(); ctx.moveTo(centerX, centerY); ctx.lineTo(centerX, dY); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx, dY); ctx.stroke();
+                        
+                        const scale = state1.rodLength / 10;
+                        const d_val = Math.abs(r * scale * Math.cos(state1.angle)).toFixed(2);
+                        drawPillText(`d = ${d_val} m`, (centerX + hx)/2, dY, '#ecfdf5', '#047857', 10);
+                        
+                        ctx.restore();
+                    }
+
+                    if (state1.showForce) {
+                        ctx.save();
+                        const startY = hy + 14 + count * 15 + 6;
+                        const forceLen = count * FORCE_PIXELS;
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(hx, hy);
+                        ctx.lineTo(hx, canvas.height);
+                        ctx.strokeStyle = 'rgba(244, 63, 94, 0.15)';
+                        ctx.setLineDash([5, 5]);
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        ctx.shadowColor = 'rgba(225, 29, 72, 0.4)';
+                        ctx.shadowBlur = 8;
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(hx, startY);
+                        ctx.lineTo(hx, startY + forceLen);
+                        ctx.strokeStyle = '#e11d48';
+                        ctx.lineWidth = 4;
+                        ctx.stroke();
+
+                        ctx.beginPath();
+                        ctx.moveTo(hx, startY + forceLen + 8);
+                        ctx.lineTo(hx - 6, startY + forceLen - 4);
+                        ctx.lineTo(hx + 5, startY + forceLen - 3);
+                        ctx.fillStyle = '#e11d48';
+                        ctx.fill();
+                        
+                        ctx.shadowColor = 'transparent'; 
+
+                        drawPillText(`F = ${count}N`, hx + (r<0 ? -32 : 32), startY + forceLen/2 - 10, '#fff1f2', '#be123c', 11);
+                        
+                        if (r !== 0) {
+                            const scale = state1.rodLength / 10;
+                            const momentValue = (count * Math.abs(r * scale * Math.cos(state1.angle))).toFixed(2);
+                            drawPillText(`M = ${momentValue}`, hx + (r<0 ? -36 : 36), startY + forceLen/2 + 12, '#eff6ff', '#1d4ed8', 11);
+                        }
+
+                        ctx.restore();
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // LOGIC TAB 2: MỞ CỬA
+        // ==========================================
+        const doorSim = {
+            state: { force: 10, distance: 0.2, pixels: 60, pointName: 'A', isDoorOpen: false },
+            
+            els: {
+                door: document.getElementById('door-element'),
+                points: { 
+                    A: document.getElementById('pointA'), 
+                    B: document.getElementById('pointB'), 
+                    C: document.getElementById('pointC') 
+                },
+                panelBtns: { 
+                    A: document.getElementById('btnA'), 
+                    B: document.getElementById('btnB'), 
+                    C: document.getElementById('btnC') 
+                },
+                forceArrow: document.getElementById('force-arrow'),
+                arrowTail: document.getElementById('arrow-tail'),
+                arrowLabel: document.getElementById('arrow-label'),
+                rulerLine: document.getElementById('ruler-line'),
+                rulerLabel: document.getElementById('ruler-label'),
+                forceDisplay: document.getElementById('force-display'),
+                calcF: document.getElementById('calc-f'),
+                calcD: document.getElementById('calc-d'),
+                calcM: document.getElementById('calc-m'),
+                statusBox: document.getElementById('status-box'),
+                btnPush: document.getElementById('btn-push')
+            },
+            
+            selectPoint: function(name, distance, pixels) {
+                if (this.state.isDoorOpen) return;
+                
+                this.state.pointName = name;
+                this.state.distance = distance;
+                this.state.pixels = pixels;
+                
+                Object.values(this.els.points).forEach(el => el.classList.remove('active-door'));
+                this.els.points[name].classList.add('active-door');
+                
+                Object.values(this.els.panelBtns).forEach(el => {
+                    el.className = "panel-point-btn bg-slate-700 text-slate-300 text-xs font-bold py-1.5 rounded-lg border-2 border-slate-600 transition hover:bg-slate-600";
+                });
+                this.els.panelBtns[name].className = "panel-point-btn bg-blue-600 text-white text-xs font-bold py-1.5 rounded-lg border-2 border-blue-400 transition hover:bg-blue-500";
+                
+                this.els.forceArrow.style.left = `${pixels + 8}px`;
+                this.els.rulerLine.style.width = `${pixels}px`;
+                this.els.rulerLabel.innerText = `d = ${distance}m`;
+                
+                this.updateMath();
+            },
+            
+            updateForce: function(val) {
+                if (this.state.isDoorOpen) return;
+                
+                this.state.force = parseFloat(val);
+                this.els.forceDisplay.innerText = `${this.state.force} N`;
+                this.els.arrowLabel.innerText = `${this.state.force}N`;
+                
+                const arrowLength = 20 + (this.state.force / 20) * 100;
+                this.els.arrowTail.style.height = `${arrowLength}px`;
+                
+                this.updateMath();
+            },
+            
+            updateMath: function() {
+                const m = this.state.force * this.state.distance;
+                this.els.calcF.innerText = `${this.state.force} N`;
+                this.els.calcD.innerText = `${this.state.distance} m`;
+                this.els.calcM.innerText = m.toFixed(1);
+            },
+            
+            pushDoor: function() {
+                if (this.state.isDoorOpen) return;
+                
+                const moment = this.state.force * this.state.distance;
+                
+                let duration = 12 / (moment + 0.5);
+                if (duration > 8) duration = 8;
+                if (duration < 0.8) duration = 0.8;
+                
+                this.els.door.style.transition = `transform ${duration}s cubic-bezier(0.3, 0, 0.2, 1)`;
+                this.els.door.style.transform = 'rotate(-85deg)'; 
+                
+                this.els.statusBox.className = "mt-2 p-4 rounded-xl border text-sm text-center leading-relaxed font-medium ";
+                
+                if (moment < 2.5) {
+                    this.els.statusBox.innerHTML = `⚠️ <b>Moment rất nhỏ (${moment.toFixed(1)} N.m).</b><br>Tác dụng làm quay yếu. Cửa mở rất khó khăn và chậm chạp!`;
+                    this.els.statusBox.classList.add('bg-red-900/30', 'border-red-800', 'text-red-300');
+                } else if (moment >= 2.5 && moment < 7) {
+                    this.els.statusBox.innerHTML = `✅ <b>Moment trung bình (${moment.toFixed(1)} N.m).</b><br>Tác dụng làm quay vừa đủ. Cửa mở bình thường.`;
+                    this.els.statusBox.classList.add('bg-amber-900/30', 'border-amber-800', 'text-amber-300');
+                } else {
+                    this.els.statusBox.innerHTML = `🚀 <b>Moment lớn (${moment.toFixed(1)} N.m).</b><br>Tác dụng làm quay mạnh. Cửa bật mở rất dễ dàng và nhanh chóng!`;
+                    this.els.statusBox.classList.add('bg-emerald-900/30', 'border-emerald-800', 'text-emerald-300');
+                }
+                
+                this.els.btnPush.classList.add('opacity-50', 'pointer-events-none', 'grayscale');
+                this.state.isDoorOpen = true;
+            },
+            
+            resetDoor: function() {
+                this.els.door.style.transition = 'transform 0.8s ease-in-out';
+                this.els.door.style.transform = 'rotate(0deg)';
+                
+                this.els.statusBox.className = "mt-2 p-3 rounded-xl border border-blue-900 bg-blue-900/20 text-blue-300 text-xs text-center leading-relaxed";
+                this.els.statusBox.innerHTML = "Cánh cửa đã đóng lại. Sẵn sàng cho lần thử nghiệm tiếp theo!";
+                
+                this.els.btnPush.classList.remove('opacity-50', 'pointer-events-none', 'grayscale');
+                this.state.isDoorOpen = false;
+            }
+        };
+
+        let frameCount1 = 0;
+        function animate() {
+            if (document.getElementById('tab1').classList.contains('active-tab')) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                updatePhysics1();
+                drawStand1();
+                drawRod1();
+                drawHangingWeights1();
+                drawVectorsAndDistances1();
+
+                frameCount1++;
+                if (frameCount1 % 6 === 0) {
+                    updateDataTable1();
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        window.onload = function() {
+            updateDataTable1();
+            doorSim.updateForce(10);
+            animate();
+        };
+    </script>
+</body>
+</html>
